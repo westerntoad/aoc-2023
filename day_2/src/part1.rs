@@ -39,26 +39,17 @@ fn main() {
 
     let mut sum = 0;
 
-    for game in games {
-        let mut max_red = 0;
-        let mut max_green = 0;
-        let mut max_blue = 0;
-
+    for mut game in games {
         for round in game.rounds {
-            if round.reds > max_red {
-                max_red = round.reds;
-            }
-
-            if round.greens > max_green {
-                max_green = round.greens;
-            }
-
-            if round.blues > max_blue {
-                max_blue = round.blues;
+            if round.reds > 12 || round.greens > 13 || round.blues > 14 {
+                game.valid = false;
+                break;
             }
         }
 
-        sum += max_red * max_green * max_blue;
+        if game.valid {
+            sum += game.id;
+        }
     }
 
     println!("\n\nOutput: {sum}");
