@@ -1,15 +1,20 @@
 use std::fs;
+use std::collections::HashMap;
 
 fn main() {
     let file_path = "input.txt";
     let input = fs::read_to_string(file_path).expect("Failed to read file.");
 
-    println!("Input: \n{input}");
+    println!("Input:\n{input}");
 
     const BASE: i32 = 2;
     let mut output = 0;
+    let mut instances: HashMap<usize, i32> = HashMap::new();
+    for i in 0..input.lines().count() {
+        instances.insert(i, 1);
+    }
 
-    for line in input.lines() {
+    for (i, line) in input.lines().enumerate() {
         let starting_index = line.find(':').unwrap() + 2;
         let mut given_numbers: Vec<i32> = vec![];
 
@@ -49,10 +54,15 @@ fn main() {
                 points += 1;
             }
         }
-        if points != 0 {
-            output += BASE.pow(points - 1);
+        
+        for j in 0..*instances.get(&i).unwrap() {
+            for k in 0..points {
+                *instances.get_mut(&(k + i + 1)).unwrap() += 1;
+            }
         }
+
+        output += instances.get(&i).unwrap();
     }
 
-    println!("{output}");
+    println!("Output:\n{output}");
 }
