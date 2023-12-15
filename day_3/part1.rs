@@ -1,95 +1,125 @@
-use std::collections::HashMap;
+use std::path::Path;
 use std::fs;
 
+struct Number {
+    value: usize,
+    x: usize,
+    y: usize,
+}
+
 fn main() {
-    let file_path = "input.txt";
+    let file_path = Path::new("input.txt");
     let contents = fs::read_to_string(file_path).expect("Failed to read file.");
 
     println!("Input:\n{contents}");
 
-    let mut schematic: Vec<Vec<char>> = vec![];
-    let mut nums_map: HashMap<usize, Vec<(usize, usize)>> = HashMap::new();
+    let mut nums_vec: Vec<Number> = vec![];
 
-    for (i, line) in contents.lines().enumerate() {
-        schematic.push(line.chars().collect());
+    for (y, line) in contents.lines().enumerate() {
+        let mut numbers_pre_concat = line
+              .match_indices(|c: char| c.is_digit(10))
+              .peekable();
 
-        let iter: Vec<&str> = line
-            .split(['.', '*'])
-            .filter(|&x| !x.is_empty())
-            .collect();
+        while numbers_pre_concat.peek() != None {
+            let mut value = numbers_pre_concat.peek().unwrap().1.parse::<usize>().unwrap();
+            let x = numbers_pre_concat.peek().unwrap().0;
 
-        for word in iter {
-            let word: String = word.chars().filter(|c| c.is_digit(10)).collect();
-            if word.parse::<usize>().is_err() {
-                continue;
+            // This is garbage. Too bad!
+            let mut index = numbers_pre_concat.next().unwrap().0;
+            let mut next_index = numbers_pre_concat.peek().unwrap_or(&(usize::MAX, "")).0;
+            while next_index == index + 1 && numbers_pre_concat.peek() != None {
+                value = value * 10 + numbers_pre_concat.next().unwrap().1.parse::<usize>().unwrap();
+                index = next_index;
+                next_index = numbers_pre_concat.peek().unwrap_or(&(usize::MAX, "")).0;
             }
 
-            let num = word.parse::<usize>().unwrap();
-            let mut coords: Vec<(usize, usize)> = vec![];
-
-            let index = line.find(&word).unwrap();
-
-            for j in index..word.len() + index {
-                let valid_north = i > 0;
-                let valid_east = j < line.len() && j == word.len() + index - 1;
-                let valid_south = i < contents.lines().count() - 1;
-                let valid_west = j > 0 && j == index;
-
-                // north
-                if valid_north {
-                    coords.push((j, i - 1));
-                }
-
-                // north-east
-                if valid_north && valid_east {
-                    coords.push((j + 1, i - 1));
-                }
-
-                // east
-                if valid_east {
-                    coords.push((j + 1, i));
-                }
-
-                // south-east
-                if valid_south && valid_east {
-                    coords.push((j + 1, i + 1));
-                }
-
-                // south
-                if valid_south {
-                    coords.push((j, i + 1));
-                }
-
-                // south-west
-                if valid_south && valid_west {
-                    coords.push((j - 1, i + 1));
-                }
-
-                // west
-                if valid_west {
-                    coords.push((j - 1, i));
-                }
-
-                // north-west
-                if valid_north && valid_west {
-                    coords.push((i - 1, j - 1));
-                }
-            }
-
-            nums_map.insert(num, coords);
+            let element = Number {
+                value,
+                x,
+                y,
+            };
+            nums_vec.push(element);
         }
     }
 
     let mut sum = 0;
+    
+    let mut schematics: Vec<Vec<char>> = vec![];
+    for line in contents.lines() {
+        schematics.push(line.chars().collect());
+    }
 
-    for num in nums_map.keys() {
-        for coord in nums_map.get(num).unwrap() {
-            println!("x: {}, y: {}, with num = {}", coord.0, coord.1, num);
-            let schematic_coord = schematic[coord.1][coord.0];
-            if !schematic_coord.is_digit(10) && schematic_coord != '.' {
-                sum += num;
-                break;
+    'outer: for num in nums_vec {
+        let length: usize = (num.value.ilog10() + 1) as usize;
+
+        let valid_north = num.y > 0;
+        let valid_east = num.x + length  < schematics[0].len();
+        let valid_south = num.y + 1 < schematics.len();
+        let valid_west = num.x > 0;
+
+        for i in 0..length {
+            // northern sections
+            if valid_north {
+                let character = schematics[num.y - 1][num.x + i];
+
+                if !character.is_digit(10) && character != '.' {
+                    sum += num.value;
+                    continue 'outer;
+                }
             }
+
+            // southern sections
+            if valid_south {
+                let character = schematics[num.y + 1][num.x + i];
+
+                if !character.is_digit(10) && character != '.' {
+                    sum += num.value;
+                    continue 'outer;
+                }
+            }
+        }
+
+        if valid_east
+            && !schematics[num.y][num.x + length].is_digit(10)
+            && schematics[num.y][num.x + length] != '.' {
+                sum += num.value;
+                continue 'outer;
+        }
+
+        
+        if valid_west
+            && !schematics[num.y][num.x - 1].is_digit(10)
+            && schematics[num.y][num.x - 1] != '.' {
+                sum += num.value;
+                continue 'outer;
+        }
+
+        if valid_north && valid_east
+            && !schematics[num.y - 1][num.x + length].is_digit(10)
+            && schematics[num.y - 1][num.x + length] != '.' {
+                sum += num.value;
+                continue 'outer;
+        }
+
+        if valid_north && valid_west
+            && !schematics[num.y - 1][num.x - 1].is_digit(10)
+            && schematics[num.y - 1][num.x - 1] != '.' {
+                sum += num.value;
+                continue 'outer;
+        }
+
+        if valid_south && valid_east
+            && !schematics[num.y + 1][num.x + length].is_digit(10)
+            && schematics[num.y + 1][num.x + length] != '.' {
+                sum += num.value;
+                continue 'outer;
+        }
+
+        if valid_south && valid_west
+            && !schematics[num.y + 1][num.x - 1].is_digit(10)
+            && schematics[num.y + 1][num.x - 1] != '.' {
+                sum += num.value;
+                continue 'outer;
         }
     }
 
